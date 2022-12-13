@@ -9,12 +9,14 @@ import time, threading
 from ftplib import FTP
 import FileClasses as FC
 import paramiko
+from Log import Logger
 
 root = None
 replica_num = 2
 ips = ["192.168.126.81","192.168.126.82","192.168.126.83"]
 flag = [True, True, True]
 blocksize = 1024 * 1024 * 128 #块大小为128M
+log = Logger("./log")
 
 def addDirectoryToDirectory(father, mydir):
     '''
@@ -253,6 +255,7 @@ class main(object):
             myDir = FC.DIRECTORYNODE()
             myDir.filename = filename
             father.addDirectory(myDir)
+            log.writeEditlog("mkdir "+path)
             return "ok!"
         else:
             path = "/" + "/".join(parsedPath)
@@ -342,6 +345,7 @@ class main(object):
     '''
     def ls(self , dir):
         path = pathParse(dir)
+        log.writeEditlog("ls "+dir)
         return listFiles(path)
 
     '''
@@ -379,6 +383,7 @@ class main(object):
                     srcfather.childDirectories.remove(x)
                     break
             srcfather.directoryNum -= 1
+            log.writeEditlog("mv "+src+" "+des)
             return "ok!"
         elif isFileExit(parsed_src):
             for x in desfile.childFiles:
@@ -393,6 +398,7 @@ class main(object):
                     father.childFiles.remove(x)
                     father.fileNum -= 1
                     break
+            log.writeEditlog("mv "+src+" "+des)
             return "ok!"
         else:
             return "file " + src + " not exist!"
@@ -405,6 +411,7 @@ class main(object):
             faPath = parsedPath[:-1]
             faDir = findFartherFile(faPath)
             deletefile(faDir, filename)
+            log.writeEditlog("rmr" +path)
             return "ok!"
         elif isDirExit(parsedPath):
             if len(parsedPath) == 0:
@@ -414,6 +421,7 @@ class main(object):
             faDir.childDirectories.remove(thisdir)
             faDir.directoryNum -= 1
             deleteDir(thisdir)
+            log.writeEditlog("rmr" +path)
             return "ok!"
         else:
             return "file or directory not exist!"
@@ -426,6 +434,7 @@ class main(object):
             faPath = parsedPath[:-1]
             faDir = findFartherFile(faPath)
             deletefile(faDir, filename)
+            log.writeEditlog("rm" +path)
             return "ok!"
         elif isDirExit(parsedPath):
             if len(parsedPath) == 0:
@@ -436,6 +445,7 @@ class main(object):
                 faDir.childDirectories.remove(thisdir)
                 faDir.directoryNum -= 1
                 del thisdir
+                log.writeEditlog("rm" +path)
                 return "ok!"
             else:
                 return path + "is not an empty directory! use '-r' force to remove."
@@ -443,6 +453,7 @@ class main(object):
 def dump():
     # 固化文件目录树
     pk.dump(root, open("./dirTree.pkl", "wb"))
+    log.writeAccesslog("close dfs")
 
 
 if __name__ == '__main__':
@@ -458,6 +469,7 @@ if __name__ == '__main__':
         root = FC.DIRECTORYNODE()
         root.filename = "/"
     print("dfs start!")
+    log.writeAccesslog("start dfs")
     s = zerorpc.Server(main())
     s.bind("tcp://0.0.0.0:4242")
     s.run()

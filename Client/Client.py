@@ -4,25 +4,29 @@ import zerorpc
 import os
 import paramiko
 import shutil
+import threading
 
-def mkSubFile(srcName,des, cnt, buf):
+
+def mkSubFile(srcName, des, cnt, buf):
     [des_filename, extname] = os.path.splitext(srcName)
     filename = des + des_filename + str(cnt) + extname
     print('正在生成子文件: %s' % filename)
     with open(filename, 'wb') as fout:
         fout.write(buf)
 
-def splitBySize(filename,des, size):
+
+def splitBySize(filename, des, size):
     with open(filename, 'rb') as fin:
         buf = fin.read(size)
         cnt = 0
         while len(buf) > 0:
-            mkSubFile(filename,des, cnt + 1, buf)
+            mkSubFile(filename, des, cnt + 1, buf)
             cnt += 1
             buf = fin.read(size)
     return cnt
 
-def merge(dir , name , size):
+
+def merge(dir, name, size):
     if os.path.exists(name):
         os.remove(name)
     files = os.listdir(dir)
@@ -31,17 +35,25 @@ def merge(dir , name , size):
     for file in files:
         file = dir + file
         with open(file, 'rb') as fin:
-            with open(target ,'ab') as fout:
+            with open(target, 'ab') as fout:
                 buf = fin.read(1024)
                 while len(buf) > 0:
                     fout.write(buf)
                     buf = fin.read(size)
 
+
+def sftp_download(ip, username, password, remotefilepath, localfilepath):
+    t = paramiko.Transport((ip, 22))  # 实例化连接对象
+    t.connect(username=username, password=password)  # 建立连接
+    sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
+    sftp.get(remotefilepath, localfilepath)
+    t.close()
+
+
 class Client:
     def __init__(self, host):
         self.c = zerorpc.Client()
         self.c.connect(host)
-
 
     def mkdir(self, path):
         return self.c.mkdir(path)
@@ -66,22 +78,24 @@ class Client:
         for i in range(blocknum):
             for j in location[i]:
                 try:
-                    t = paramiko.Transport((j[0], 22)) # 实例化连接对象
-                    t.connect(username='helen',password='142578') # 建立连接
-                    sftp = paramiko.SFTPClient.from_transport(t) # 使用链接建立sftp对象
+                    t = paramiko.Transport((j[0], 22))  # 实例化连接对象
+                    t.connect(username='helen', password='142578')  # 建立连接
+                    sftp = paramiko.SFTPClient.from_transport(
+                        t)  # 使用链接建立sftp对象
                     storefilename = filename + j[1] + extname
-                    sftp.put(path +'/'+ files[i], "/var/data/"+storefilename)
-                    t.close() # 关闭连接
+                    sftp.put(path + '/' + files[i], "/var/data/"+storefilename)
+                    t.close()  # 关闭连接
                 except:
                     newloc = self.c.changeIP(filename, i + 1, j)
                     print("changeed ip: " + newloc[0] + "\n")
-                    t = paramiko.Transport((newloc[0], 22)) # 实例化连接对象
-                    t.connect(username='helen',password='142578') # 建立连接
-                    sftp = paramiko.SFTPClient.from_transport(t) # 使用链接建立sftp对象
+                    t = paramiko.Transport((newloc[0], 22))  # 实例化连接对象
+                    t.connect(username='helen', password='142578')  # 建立连接
+                    sftp = paramiko.SFTPClient.from_transport(
+                        t)  # 使用链接建立sftp对象
                     filename = str(newloc[1]) + extname
-                    sftp.put(path +'/'+ files[i], "/var/data/"+filename)
-                    t.close() # 关闭连接
-        shutil.rmtree("./split")  
+                    sftp.put(path + '/' + files[i], "/var/data/"+filename)
+                    t.close()  # 关闭连接
+        shutil.rmtree("./split")
 
     def getfile(self, remotepath, localpath="./fileFromDatanode/"):
         # 拿到文件存储位置信息
@@ -93,25 +107,34 @@ class Client:
         blocksize = self.c.getBlockSize()
 
         [filename, extname] = os.path.splitext(remotepath.split('/')[-1])
-
+        threads = []
         for loc in location:
             name = loc[0] + "_" + filename + str(loc[1]) + extname
-            print("name: "+ name)
+            print("name: " + name)
             remotefilename = filename + str(loc[1]) + extname
             print(remotefilename)
-            t = paramiko.Transport((loc[0], 22)) # 实例化连接对象
-            t.connect(username='helen',password='142578') # 建立连接
-            sftp = paramiko.SFTPClient.from_transport(t) # 使用链接建立sftp对象
-            sftp.get("/var/data/"+remotefilename, localpath+loc[1])
-        merge(localpath, "./merge/"+filename+extname , blocksize)
-        print("合并的文件请见：./merge/"+filename+extname)
+            t = threading.Thread(target=sftp_download, args=(loc[0], 'helen', '142578', "/var/data/"+remotefilename, localpath+loc[1]))
+            threads.append(t)
+            t.start()
+            # sftp_download(loc[0], 'helen', '142578', "/var/data/"+remotefilename, localpath+loc[1])
+            # t = paramiko.Transport((loc[0], 22))  # 实例化连接对象
+            # t.connect(username='helen', password='142578')  # 建立连接
+            # sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
+            # sftp.get("/var/data/"+remotefilename, localpath+loc[1])
+            # t.close()
         
-        shutil.rmtree(localpath)  
+        for t in threads:
+            t.join()
+        merge(localpath, "./merge/"+filename+extname, blocksize)
+        print("合并的文件请见：./merge/"+filename+extname)
+
+        shutil.rmtree(localpath)
 
     def cat(self, path):
         self.getfile(path)
         [filename, extname] = os.path.splitext(path.split('/')[-1])
-        file_object = open("./fileFromDatanode/" + filename + extname, 'r', encoding='utf-8')
+        file_object = open("./fileFromDatanode/" +
+                           filename + extname, 'r', encoding='utf-8')
         for string in file_object:
             print(string)
         file_object.close()
@@ -125,7 +148,7 @@ class Client:
     def cp(self, src, des):
         pass
 
-    def rm(self, path , flag=None):
+    def rm(self, path, flag=None):
         if flag == 'r':
             return self.c.rmr(path)
         else:
