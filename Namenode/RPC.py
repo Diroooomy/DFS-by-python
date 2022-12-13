@@ -10,6 +10,7 @@ from ftplib import FTP
 import FileClasses as FC
 import paramiko
 from Log import Logger
+import json
 
 root = None
 replica_num = 2
@@ -460,6 +461,13 @@ if __name__ == '__main__':
     # 启动节点活跃性检测进程
     # thread = threading.Thread(target=action, args=())
     # thread.start()
+    with open("./env.json", 'r') as load_f:
+        env = json.load(load_f)['namenode']
+        replica_num = env['replica_num']
+        ips = env['ips']
+        flag = env['flag']
+        blocksize = env['blocksize']
+        log = Logger(env['logpath'])
     if os.path.exists("./dirTree.pkl"):
         # 文件目录树已存在 直接加载
         print("load dir tree......")
