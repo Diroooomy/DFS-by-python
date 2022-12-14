@@ -215,13 +215,15 @@ def deletefile(dir , filename):
         locations = x.locations
         [name, extname] = os.path.splitext(filename)
         ftp = FTP()
-        for loc in locations:
-            remotefilename = filename + loc[1] + extname
-            ssh=paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.connect(hostname=loc[0],port=22,username="helen",password="142578")
-            ssh.exec_command('sudo rm -f /var/data/'+remotefilename)
-            ssh.close()
+        for location in locations:
+            for loc in location:
+                print(loc)
+                remotefilename = filename + loc[1] + extname
+                ssh=paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.connect(hostname=loc[0],port=22,username="helen",password="142578")
+                ssh.exec_command('sudo rm -f /var/data/'+remotefilename)
+                ssh.close()
         #删除块链
         head = x.head
         while head is not None:
@@ -488,13 +490,11 @@ class main(object):
 def dump():
     # 固化文件目录树
     pk.dump(root, open("./dirTree.pkl", "wb"))
+    log.generateCheckpoint()
     log.writeAccesslog("close dfs")
 
 
 if __name__ == '__main__':
-    # 启动节点活跃性检测进程
-    # thread = threading.Thread(target=action, args=())
-    # thread.start()
     with open("./env.json", 'r') as load_f:
         env = json.load(load_f)['namenode']
         replica_num = env['replica_num']
@@ -503,6 +503,9 @@ if __name__ == '__main__':
         blocksize = env['blocksize']
         log = Logger(env['logpath'])
         data_dir = env['data_dir']
+    # 启动节点活跃性检测进程
+    thread = threading.Thread(target=action, args=())
+    thread.start()
     if os.path.exists("./dirTree.pkl"):
         # 文件目录树已存在 直接加载
         print("load dir tree......")
