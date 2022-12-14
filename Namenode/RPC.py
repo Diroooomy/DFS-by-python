@@ -18,6 +18,23 @@ ips = ["192.168.126.81","192.168.126.82","192.168.126.83"]
 flag = [True, True, True]
 blocksize = 1024 * 1024 * 128 #块大小为128M
 log = Logger("./log")
+data_dir = None
+
+def sftp_download(ip, username, password, remotefilepath, localfilepath):
+    t = paramiko.Transport((ip, 22))  # 实例化连接对象
+    t.connect(username=username, password=password)  # 建立连接
+    sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
+    sftp.get(remotefilepath, localfilepath)
+    t.close()
+
+
+def sftp_upload(ip, username, password, localfilepath, remotefilepath):
+    t = paramiko.Transport((ip, 22))  # 实例化连接对象
+    t.connect(username=username, password=password)  # 建立连接
+    sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
+    sftp.put(localfilepath, remotefilepath)
+    t.close()
+
 
 def addDirectoryToDirectory(father, mydir):
     '''
@@ -273,6 +290,10 @@ class main(object):
     def getBlockSize(self):
         return blocksize
 
+    def getproperties(self):
+        with open("./env.json", 'r') as load_f:
+            env = json.load(load_f)
+            return env
     '''
         @jie
         获取文件块存储位置
@@ -344,10 +365,23 @@ class main(object):
     output:
         [] : 目录下所有文件名称
     '''
-    def ls(self , dir):
+    def ls(self, dir):
         path = pathParse(dir)
         log.writeEditlog("ls "+dir)
         return listFiles(path)
+
+    def cp(self, src, des):
+        src_locs = self.get(src)
+        des_locs = self.getLocation(des, replica_num)
+        for i in src_locs:
+            sftp_download(i[0], env['username'], env['password'], data_dir+i[1], "./temp/")
+        files = os.listdir("./temp/")
+    
+        for file in files:
+            for j in des_locs:
+
+                sftp_upload(j[0], env['username'], env['password'], "./temp/"+file,"/var/data/"+file)
+        return 'OK'
 
     '''
     @jie
@@ -468,6 +502,7 @@ if __name__ == '__main__':
         flag = env['flag']
         blocksize = env['blocksize']
         log = Logger(env['logpath'])
+        data_dir = env['data_dir']
     if os.path.exists("./dirTree.pkl"):
         # 文件目录树已存在 直接加载
         print("load dir tree......")

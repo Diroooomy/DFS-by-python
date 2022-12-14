@@ -49,6 +49,13 @@ def sftp_download(ip, username, password, remotefilepath, localfilepath):
     sftp.get(remotefilepath, localfilepath)
     t.close()
 
+def sftp_upload(ip, username, password, localfilepath, remotefilepath):
+    t = paramiko.Transport((ip, 22))  # 实例化连接对象
+    t.connect(username=username, password=password)  # 建立连接
+    sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
+    sftp.put(localfilepath, remotefilepath)
+    t.close()
+
 
 class Client:
     def __init__(self, host):
@@ -78,23 +85,23 @@ class Client:
         for i in range(blocknum):
             for j in location[i]:
                 try:
-                    t = paramiko.Transport((j[0], 22))  # 实例化连接对象
-                    t.connect(username='helen', password='142578')  # 建立连接
-                    sftp = paramiko.SFTPClient.from_transport(
-                        t)  # 使用链接建立sftp对象
+                    # t = paramiko.Transport((j[0], 22))  # 实例化连接对象
+                    # t.connect(username='helen', password='142578')  # 建立连接
+                    # sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
                     storefilename = filename + j[1] + extname
-                    sftp.put(path + '/' + files[i], "/var/data/"+storefilename)
-                    t.close()  # 关闭连接
+                    # sftp.put(path + '/' + files[i], "/var/data/"+storefilename)
+                    # t.close()  # 关闭连接
+                    sftp_upload(j[0], 'helen', '142578', path + '/' + files[i],"/var/data/"+storefilename)
                 except:
                     newloc = self.c.changeIP(filename, i + 1, j)
-                    print("changeed ip: " + newloc[0] + "\n")
-                    t = paramiko.Transport((newloc[0], 22))  # 实例化连接对象
-                    t.connect(username='helen', password='142578')  # 建立连接
-                    sftp = paramiko.SFTPClient.from_transport(
-                        t)  # 使用链接建立sftp对象
-                    filename = str(newloc[1]) + extname
-                    sftp.put(path + '/' + files[i], "/var/data/"+filename)
-                    t.close()  # 关闭连接
+                    # print("changeed ip: " + newloc[0] + "\n")
+                    # t = paramiko.Transport((newloc[0], 22))  # 实例化连接对象
+                    # t.connect(username='helen', password='142578')  # 建立连接
+                    # sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
+                    # filename = str(newloc[1]) + extname
+                    # sftp.put(path + '/' + files[i], "/var/data/"+filename)
+                    # t.close()  # 关闭连接
+                    sftp_upload(newloc[0], 'helen', '142578', path + '/' + files[i],"/var/data/"+filename)
         shutil.rmtree("./split")
 
     def getfile(self, remotepath, localpath="./fileFromDatanode/"):
@@ -113,10 +120,10 @@ class Client:
             print("name: " + name)
             remotefilename = filename + str(loc[1]) + extname
             print(remotefilename)
-            t = threading.Thread(target=sftp_download, args=(loc[0], 'helen', '142578', "/var/data/"+remotefilename, localpath+loc[1]))
-            threads.append(t)
-            t.start()
-            # sftp_download(loc[0], 'helen', '142578', "/var/data/"+remotefilename, localpath+loc[1])
+            # t = threading.Thread(target=sftp_download, args=(loc[0], 'helen', '142578', "/var/data/"+remotefilename, localpath+loc[1]))
+            # threads.append(t)
+            # t.start()
+            sftp_download(loc[0], 'helen', '142578', "/var/data/"+remotefilename, localpath+loc[1])
             # t = paramiko.Transport((loc[0], 22))  # 实例化连接对象
             # t.connect(username='helen', password='142578')  # 建立连接
             # sftp = paramiko.SFTPClient.from_transport(t)  # 使用链接建立sftp对象
@@ -146,7 +153,7 @@ class Client:
         return self.c.mv(src, des)
 
     def cp(self, src, des):
-        pass
+        self.c.cp(src, des)
 
     def rm(self, path, flag=None):
         if flag == 'r':
