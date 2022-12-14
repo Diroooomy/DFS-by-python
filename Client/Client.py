@@ -10,7 +10,6 @@ import threading
 def mkSubFile(srcName, des, cnt, buf):
     [des_filename, extname] = os.path.splitext(srcName)
     filename = des + des_filename + str(cnt) + extname
-    print('正在生成子文件: %s' % filename)
     with open(filename, 'wb') as fout:
         fout.write(buf)
 
@@ -157,12 +156,12 @@ class Client:
 
 if __name__ == '__main__':
     client = Client("tcp://192.168.126.80:4242")
-    # client.putfile("./x.txt","/test/x.txt")
-    client.getfile("/test/x.txt")
-    client.mkdir("/dir1")
+    # client.putfile("./data.a","/test/data.a")
+    # client.getfile("/test/x.txt")
+    # client.mkdir("/dir1")
     # client.mkdir("/dir1/dir2")
     # client.mkdir("/dir1/dir3")
     # print(client.ls("/"))
     # print(client.ls("/dir1"))
-    # print(client.rm("/dir1"))
+    print(client.rm("/test/data.a"))
     # print(client.ls("/"))

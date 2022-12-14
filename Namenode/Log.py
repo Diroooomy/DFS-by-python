@@ -20,4 +20,8 @@ class Logger:
             f.write(time.asctime() + ' ' + content+"\n")
         f.close()
 
+    def generateCheckpoint(self):
+        with open(self.path + '/edit.log', 'a+') as f:
+            f.write(time.asctime() + ' checkpoint' +"\n")
+        f.close()
 
